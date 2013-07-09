@@ -118,18 +118,19 @@ enum actionSheetButtonIndex {
     if (mode == TSMiniWebBrowserModeNavigation) {
         self.navigationController.navigationBar.barStyle = barStyle;
     }
-    
-    CGSize viewSize = self.view.frame.size;
-    if (mode == TSMiniWebBrowserModeTabBar) {
-        toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, -1, viewSize.width, kToolBarHeight)];
-    } else {
-        toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, viewSize.height-kToolBarHeight, viewSize.width, kToolBarHeight)];
+    if (_showToolBar) {
+        CGSize viewSize = self.view.frame.size;
+        if (mode == TSMiniWebBrowserModeTabBar) {
+            toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, -1, viewSize.width, kToolBarHeight)];
+        } else {
+            toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, viewSize.height-kToolBarHeight, viewSize.width, kToolBarHeight)];
+        }
+        
+        toolBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
+        toolBar.barStyle = barStyle;
+        [self.view addSubview:toolBar];
     }
-    
-    toolBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
-    toolBar.barStyle = barStyle;
-    [self.view addSubview:toolBar];
-    
+        
     buttonGoBack = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"back_icon.png"] style:UIBarButtonItemStylePlain target:self action:@selector(backButtonTouchUp:)];
     
     UIBarButtonItem *fixedSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
@@ -186,7 +187,7 @@ enum actionSheetButtonIndex {
     if (mode == TSMiniWebBrowserModeModal) {
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, kToolBarHeight, viewSize.width, viewSize.height-kToolBarHeight*2)];
     } else if(mode == TSMiniWebBrowserModeNavigation) {
-        webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, 0, viewSize.width, viewSize.height-kToolBarHeight)];
+        webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, 0, viewSize.width, viewSize.height-(_showToolBar*kToolBarHeight))];
     } else if(mode == TSMiniWebBrowserModeTabBar) {
         self.view.backgroundColor = [UIColor redColor];
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, kToolBarHeight-1, viewSize.width, viewSize.height-kToolBarHeight+1)];
