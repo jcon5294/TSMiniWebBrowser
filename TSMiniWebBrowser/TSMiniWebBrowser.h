@@ -73,6 +73,8 @@ typedef enum {
 @property (nonatomic, assign) BOOL showPageTitleOnTitleBar;
 @property (nonatomic, assign) BOOL showReloadButton;
 @property (nonatomic, assign) BOOL showActionButton;
+@property (nonatomic, assign) BOOL showBackAndForward;
+@property (nonatomic, assign) BOOL showToolBar;
 @property (nonatomic, assign) UIBarStyle barStyle;
 @property (nonatomic, strong) UIColor *barTintColor;
 @property (nonatomic, strong) NSString *modalDismissButtonTitle;

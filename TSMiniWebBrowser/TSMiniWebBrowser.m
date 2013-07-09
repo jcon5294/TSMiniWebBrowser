@@ -147,32 +147,38 @@ enum actionSheetButtonIndex {
     UIBarButtonItem *buttonAction = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(buttonActionTouchUp:)];
     
     // Activity indicator is a bit special
-    activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
-    activityIndicator.frame = CGRectMake(11, 7, 20, 20);
-    UIView *containerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 43, 33)];
-    [containerView addSubview:activityIndicator];
-    UIBarButtonItem *buttonContainer = [[UIBarButtonItem alloc] initWithCustomView:containerView];
-    
+//    activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+//    activityIndicator.frame = CGRectMake(11, 7, 20, 20);
+//    UIView *containerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 43, 33)];
+//    [containerView addSubview:activityIndicator];
+//    UIBarButtonItem *buttonContainer = [[UIBarButtonItem alloc] initWithCustomView:containerView];
+        
     // Add butons to an array
     NSMutableArray *toolBarButtons = [[NSMutableArray alloc] init];
-    [toolBarButtons addObject:buttonGoBack];
-    [toolBarButtons addObject:fixedSpace];
-    [toolBarButtons addObject:buttonGoForward];
-    [toolBarButtons addObject:flexibleSpace];
-    [toolBarButtons addObject:buttonContainer];
+    if (_showBackAndForward) {
+        [toolBarButtons addObject:buttonGoBack];
+        if (_showToolBar) [toolBarButtons addObject:fixedSpace];
+        [toolBarButtons addObject:buttonGoForward];
+        if (_showToolBar) [toolBarButtons addObject:flexibleSpace];
+    }
+//        [toolBarButtons addObject:buttonContainer];
     if (showReloadButton) {
         [toolBarButtons addObject:buttonReload];
     }
     if (showActionButton) {
-        [toolBarButtons addObject:fixedSpace2];
+        if (_showToolBar) [toolBarButtons addObject:fixedSpace2];
         [toolBarButtons addObject:buttonAction];
     }
     
-    // Set buttons to tool bar
-    [toolBar setItems:toolBarButtons animated:YES];
-	
-	// Tint toolBar
-	[toolBar setTintColor:barTintColor];
+    if (_showToolBar) {
+        // Set buttons to tool bar
+        [toolBar setItems:toolBarButtons animated:YES];
+        
+        // Tint toolBar
+        [toolBar setTintColor:barTintColor];
+    } else if (mode == TSMiniWebBrowserModeNavigation) {
+        [self.navigationItem setRightBarButtonItems:toolBarButtons];
+    }
 }
 
 -(void) initWebView {
