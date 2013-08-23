@@ -271,11 +271,6 @@ enum actionSheetButtonIndex {
     
 }
 
-- (void)viewDidUnload
-{
-    [super viewDidUnload];
-}
-
 - (void) viewWillAppear:(BOOL)animated
 {
 	for (id subview in self.view.subviews)
