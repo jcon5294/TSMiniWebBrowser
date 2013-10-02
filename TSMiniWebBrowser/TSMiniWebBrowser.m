@@ -34,9 +34,7 @@
 @synthesize showPageTitleOnTitleBar;
 @synthesize showReloadButton;
 @synthesize showActionButton;
-@synthesize barStyle;
 @synthesize modalDismissButtonTitle;
-@synthesize barTintColor;
 @synthesize domainLockList;
 @synthesize currentURL;
 
@@ -108,16 +106,12 @@ enum actionSheetButtonIndex {
     navigationBarModal = [[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, width, 44)];
     //navigationBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleBottomMargin;
     navigationBarModal.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    navigationBarModal.barStyle = barStyle;
     [navigationBarModal pushNavigationItem:titleBar animated:NO];
     
     [self.view addSubview:navigationBarModal];
 }
 
 -(void) initToolBar {
-    if (mode == TSMiniWebBrowserModeNavigation) {
-        self.navigationController.navigationBar.barStyle = barStyle;
-    }
     if (_showToolBar) {
         CGSize viewSize = self.view.frame.size;
         if (mode == TSMiniWebBrowserModeTabBar) {
@@ -127,7 +121,6 @@ enum actionSheetButtonIndex {
         }
         
         toolBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
-        toolBar.barStyle = barStyle;
         [self.view addSubview:toolBar];
     }
         
@@ -174,9 +167,7 @@ enum actionSheetButtonIndex {
     if (_showToolBar) {
         // Set buttons to tool bar
         [toolBar setItems:toolBarButtons animated:YES];
-        
-        // Tint toolBar
-        [toolBar setTintColor:barTintColor];
+
     } else if (mode == TSMiniWebBrowserModeNavigation) {
         [self.navigationItem setRightBarButtonItems:toolBarButtons];
     }
@@ -220,8 +211,6 @@ enum actionSheetButtonIndex {
         showActionButton = YES;
         modalDismissButtonTitle = NSLocalizedString(@"Done", nil);
         forcedTitleBarText = nil;
-        barStyle = UIBarStyleDefault;
-		barTintColor = nil;
     }
     
     return self;
@@ -243,11 +232,6 @@ enum actionSheetButtonIndex {
         self.view.frame = CGRectMake(0, 0, viewWidth, viewHeight);
     }
     
-    // Store the current navigationBar bar style to be able to restore it later.
-    if (mode == TSMiniWebBrowserModeNavigation) {
-        originalBarStyle = self.navigationController.navigationBar.barStyle;
-    }
-    
     // Init tool bar
     [self initToolBar];
     
@@ -258,9 +242,6 @@ enum actionSheetButtonIndex {
     if (mode == TSMiniWebBrowserModeModal) {
         [self initTitleBar];
     }
-    
-    // Status bar style
-    [[UIApplication sharedApplication] setStatusBarStyle:(UIStatusBarStyle)barStyle animated:YES];
     
     // UI state
     buttonGoBack.enabled = NO;
@@ -287,14 +268,6 @@ enum actionSheetButtonIndex {
 
 -(void) viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    
-    // Restore navigationBar bar style.
-    if (mode == TSMiniWebBrowserModeNavigation) {
-        self.navigationController.navigationBar.barStyle = originalBarStyle;
-    }
-    
-    // Restore Status bar style
-    [[UIApplication sharedApplication] setStatusBarStyle:(UIStatusBarStyle)originalBarStyle animated:NO];
     
     // Stop loading
     [webView stopLoading];

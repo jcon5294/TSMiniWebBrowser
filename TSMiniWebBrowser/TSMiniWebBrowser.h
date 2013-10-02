@@ -57,13 +57,8 @@ typedef enum {
     BOOL showPageTitleOnTitleBar;
     BOOL showReloadButton;
     BOOL showActionButton;
-    UIBarStyle barStyle;
-	UIColor *barTintColor;
     NSString *modalDismissButtonTitle;
     NSString *forcedTitleBarText;
-    
-    // State control
-    UIBarStyle originalBarStyle;
 }
 
 @property (assign) id<TSMiniWebBrowserDelegate> delegate;
