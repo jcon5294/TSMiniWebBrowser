@@ -26,17 +26,27 @@
 
 #import "TSMiniWebBrowser.h"
 
-@implementation TSMiniWebBrowser
+@interface TSMiniWebBrowser ()
+{
+    // URL
+    NSURL *urlToLoad;
+    
+    // Layout
+    UIWebView *webView;
+    UIToolbar *toolBar;
+    UINavigationBar *navigationBarModal; // Only used in modal mode
+    
+    // Toolbar items
+    UIActivityIndicatorView *activityIndicator;
+    UIBarButtonItem *buttonGoBack;
+    UIBarButtonItem *buttonGoForward;
+    
+    // Customization
+    NSString *forcedTitleBarText;
+}
+@end
 
-@synthesize delegate;
-@synthesize mode;
-@synthesize showURLStringOnActionSheetTitle;
-@synthesize showPageTitleOnTitleBar;
-@synthesize showReloadButton;
-@synthesize showActionButton;
-@synthesize modalDismissButtonTitle;
-@synthesize domainLockList;
-@synthesize currentURL;
+@implementation TSMiniWebBrowser
 
 #define kToolBarHeight  44
 #define kTabBarHeight   49
@@ -46,57 +56,64 @@ enum actionSheetButtonIndex {
 	kChromeButtonIndex,
 };
 
-#pragma mark - Private Methods
+#pragma mark - Setup
 
--(void)setTitleBarText:(NSString*)pageTitle {
-    if (mode == TSMiniWebBrowserModeModal) {
-        navigationBarModal.topItem.title = pageTitle;
-        
-    } else if(mode == TSMiniWebBrowserModeNavigation) {
-        if(pageTitle) [[self navigationItem] setTitle:pageTitle];
-    }
-}
-
--(void) toggleBackForwardButtons {
-    buttonGoBack.enabled = webView.canGoBack;
-    buttonGoForward.enabled = webView.canGoForward;
-}
-
--(void)showActivityIndicators {
-    [activityIndicator setHidden:NO];
-    [activityIndicator startAnimating];
-    [UIApplication sharedApplication].networkActivityIndicatorVisible = YES;
-}
-
--(void)hideActivityIndicators {
-    [activityIndicator setHidden:YES];
-    [activityIndicator stopAnimating];
-    [UIApplication sharedApplication].networkActivityIndicatorVisible = NO;
-}
-
--(void) dismissController {
-    if ( webView.loading ) {
-        [webView stopLoading];
-    }
-    [self dismissViewControllerAnimated:YES completion:nil];
-    
-    // Notify the delegate
-    if (self.delegate != NULL && [self.delegate respondsToSelector:@selector(tsMiniWebBrowserDidDismiss)]) {
-        [delegate tsMiniWebBrowserDidDismiss];
-    }
-}
-
-//Added in the dealloc method to remove the webview delegate, because if you use this in a navigation controller
-//TSMiniWebBrowser can get deallocated while the page is still loading and the web view will call its delegate-- resulting in a crash
--(void)dealloc
+- (id)initWithUrl:(NSURL*)url
 {
-    [webView setDelegate:nil];
+    self = [self init];
+    if(self)
+    {
+        urlToLoad = url;
+        
+        // Defaults
+        mode = TSMiniWebBrowserModeNavigation;
+        showURLStringOnActionSheetTitle = YES;
+        showPageTitleOnTitleBar = YES;
+        showReloadButton = YES;
+        showActionButton = YES;
+        modalDismissButtonTitle = NSLocalizedString(@"Done", nil);
+        forcedTitleBarText = nil;
+    }
+    
+    return self;
 }
 
-#pragma mark - Init
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    // Main view frame.
+    if (mode == TSMiniWebBrowserModeTabBar) {
+        CGFloat viewWidth = [UIScreen mainScreen].bounds.size.width;
+        CGFloat viewHeight = [UIScreen mainScreen].bounds.size.height - kTabBarHeight;
+        if (![UIApplication sharedApplication].statusBarHidden) {
+            viewHeight -= [UIApplication sharedApplication].statusBarFrame.size.height;
+        }
+        self.view.frame = CGRectMake(0, 0, viewWidth, viewHeight);
+    }
+    
+    // Init tool bar
+    [self initToolBar];
+    
+    // Init web view
+    [self initWebView];
+    
+    // Init title bar if presented modally
+    if (mode == TSMiniWebBrowserModeModal) {
+        [self initTitleBar];
+    }
+    
+    // UI state
+    buttonGoBack.enabled = NO;
+    buttonGoForward.enabled = NO;
+    if (forcedTitleBarText != nil) {
+        [self setTitleBarText:forcedTitleBarText];
+    }
+}
 
 // This method is only used in modal mode
--(void) initTitleBar {
+-(void) initTitleBar
+{
     UIBarButtonItem *buttonDone = [[UIBarButtonItem alloc] initWithTitle:modalDismissButtonTitle style:UIBarButtonItemStyleBordered target:self action:@selector(dismissController)];
     
     UINavigationItem *titleBar = [[UINavigationItem alloc] initWithTitle:@""];
@@ -111,7 +128,8 @@ enum actionSheetButtonIndex {
     [self.view addSubview:navigationBarModal];
 }
 
--(void) initToolBar {
+-(void) initToolBar
+{
     if (_showToolBar) {
         CGSize viewSize = self.view.frame.size;
         if (mode == TSMiniWebBrowserModeTabBar) {
@@ -173,7 +191,8 @@ enum actionSheetButtonIndex {
     }
 }
 
--(void) initWebView {
+-(void) initWebView
+{
     CGSize viewSize = self.view.frame.size;
     if (mode == TSMiniWebBrowserModeModal) {
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, kToolBarHeight, viewSize.width, viewSize.height-kToolBarHeight*2)];
@@ -189,67 +208,35 @@ enum actionSheetButtonIndex {
     webView.scalesPageToFit = YES;
     
     webView.delegate = self;
+
+    if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0) {
+        CGFloat topInset = self.navigationController.navigationBar.frame.size.height
+                         + [[UIApplication sharedApplication] statusBarFrame].size.height;
+        CGFloat bottomInset = self.tabBarController.tabBar.frame.size.height;
+        UIEdgeInsets insets = UIEdgeInsetsMake(topInset, 0, bottomInset, 0);
+        webView.scrollView.contentInset = insets;
+        webView.scrollView.scrollIndicatorInsets = insets;
+    }
     
     // Load the URL in the webView
     NSURLRequest *requestObj = [NSURLRequest requestWithURL:urlToLoad];
     [webView loadRequest:requestObj];
 }
 
-#pragma mark -
-
-- (id)initWithUrl:(NSURL*)url {
-    self = [self init];
-    if(self)
-    {
-        urlToLoad = url;
+-(void)setTitleBarText:(NSString*)pageTitle
+{
+    if (mode == TSMiniWebBrowserModeModal) {
+        navigationBarModal.topItem.title = pageTitle;
         
-        // Defaults
-        mode = TSMiniWebBrowserModeNavigation;
-        showURLStringOnActionSheetTitle = YES;
-        showPageTitleOnTitleBar = YES;
-        showReloadButton = YES;
-        showActionButton = YES;
-        modalDismissButtonTitle = NSLocalizedString(@"Done", nil);
-        forcedTitleBarText = nil;
+    } else if(mode == TSMiniWebBrowserModeNavigation) {
+        if(pageTitle) [[self navigationItem] setTitle:pageTitle];
     }
-    
-    return self;
 }
 
-#pragma mark - View lifecycle
-
-- (void)viewDidLoad
+- (void)setFixedTitleBarText:(NSString*)newTitleBarText
 {
-    [super viewDidLoad];
-    
-    // Main view frame.
-    if (mode == TSMiniWebBrowserModeTabBar) {
-        CGFloat viewWidth = [UIScreen mainScreen].bounds.size.width;
-        CGFloat viewHeight = [UIScreen mainScreen].bounds.size.height - kTabBarHeight;
-        if (![UIApplication sharedApplication].statusBarHidden) {
-            viewHeight -= [UIApplication sharedApplication].statusBarFrame.size.height;
-        }
-        self.view.frame = CGRectMake(0, 0, viewWidth, viewHeight);
-    }
-    
-    // Init tool bar
-    [self initToolBar];
-    
-    // Init web view
-    [self initWebView];
-    
-    // Init title bar if presented modally
-    if (mode == TSMiniWebBrowserModeModal) {
-        [self initTitleBar];
-    }
-    
-    // UI state
-    buttonGoBack.enabled = NO;
-    buttonGoForward.enabled = NO;
-    if (forcedTitleBarText != nil) {
-        [self setTitleBarText:forcedTitleBarText];
-    }
-    
+    forcedTitleBarText = newTitleBarText;
+    showPageTitleOnTitleBar = NO;
 }
 
 - (void) viewWillAppear:(BOOL)animated
@@ -266,165 +253,15 @@ enum actionSheetButtonIndex {
 	[webView.scrollView setScrollsToTop:YES];
 }
 
--(void) viewWillDisappear:(BOOL)animated {
-    [super viewWillDisappear:animated];
-    
-    // Stop loading
-    [webView stopLoading];
-}
-
-- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+- (void)loadURL:(NSURL*)url
 {
-    // Return YES for supported orientations
-    return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
-}
-
-/* Fix for landscape + zooming webview bug.
- * If you experience perfomance problems on old devices ratation, comment out this method.
- */
-- (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration {
-    CGFloat ratioAspect = webView.bounds.size.width/webView.bounds.size.height;
-    switch (toInterfaceOrientation) {
-        case UIInterfaceOrientationPortraitUpsideDown:
-        case UIInterfaceOrientationPortrait:
-            // Going to Portrait mode
-            for (UIScrollView *scroll in [webView subviews]) { //we get the scrollview
-                // Make sure it really is a scroll view and reset the zoom scale.
-                if ([scroll respondsToSelector:@selector(setZoomScale:)]){
-                    scroll.minimumZoomScale = scroll.minimumZoomScale/ratioAspect;
-                    scroll.maximumZoomScale = scroll.maximumZoomScale/ratioAspect;
-                    [scroll setZoomScale:(scroll.zoomScale/ratioAspect) animated:YES];
-                }
-            }
-            break;
-        default:
-            // Going to Landscape mode
-            for (UIScrollView *scroll in [webView subviews]) { //we get the scrollview
-                // Make sure it really is a scroll view and reset the zoom scale.
-                if ([scroll respondsToSelector:@selector(setZoomScale:)]){
-                    scroll.minimumZoomScale = scroll.minimumZoomScale *ratioAspect;
-                    scroll.maximumZoomScale = scroll.maximumZoomScale *ratioAspect;
-                    [scroll setZoomScale:(scroll.zoomScale*ratioAspect) animated:YES];
-                }
-            }
-            break;
-    }
-}
-
-- (void)didReceiveMemoryWarning
-{
-    // Releases the view if it doesn't have a superview.
-    [super didReceiveMemoryWarning];
-}
-
-#pragma mark - Action Sheet
-
-- (void)showActionSheet {
-    NSString *urlString = @"";
-    if (showURLStringOnActionSheetTitle) {
-        NSURL* url = [webView.request URL];
-        urlString = [url absoluteString];
-    }
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] init];
-    actionSheet.title = urlString;
-    actionSheet.delegate = self;
-    [actionSheet addButtonWithTitle:NSLocalizedString(@"Open in Safari", nil)];
-    
-    if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"googlechrome://"]]) {
-        // Chrome is installed, add the option to open in chrome.
-        [actionSheet addButtonWithTitle:NSLocalizedString(@"Open in Chrome", nil)];
-    }
-    
-    actionSheet.cancelButtonIndex = [actionSheet addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
-	actionSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
-    
-    if (mode == TSMiniWebBrowserModeTabBar) {
-        [actionSheet showFromTabBar:self.tabBarController.tabBar];
-    }
-    //else if (mode == TSMiniWebBrowserModeNavigation && [self.navigationController respondsToSelector:@selector(tabBarController)]) {
-    else if (mode == TSMiniWebBrowserModeNavigation && self.navigationController.tabBarController != nil) {
-        [actionSheet showFromTabBar:self.navigationController.tabBarController.tabBar];
-    }
-    else {
-        [actionSheet showInView:self.view];
-    }
-    
-}
-
-- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex {
-    if (buttonIndex == [actionSheet cancelButtonIndex]) return;
-    
-    NSURL *theURL = [webView.request URL];
-    if (theURL == nil || [theURL isEqual:[NSURL URLWithString:@""]]) {
-        theURL = urlToLoad;
-    }
-    
-    if (buttonIndex == kSafariButtonIndex) {
-        [[UIApplication sharedApplication] openURL:theURL];
-    }
-    else if (buttonIndex == kChromeButtonIndex) {
-        NSString *scheme = theURL.scheme;
-        
-        // Replace the URL Scheme with the Chrome equivalent.
-        NSString *chromeScheme = nil;
-        if ([scheme isEqualToString:@"http"]) {
-            chromeScheme = @"googlechrome";
-        } else if ([scheme isEqualToString:@"https"]) {
-            chromeScheme = @"googlechromes";
-        }
-        
-        // Proceed only if a valid Google Chrome URI Scheme is available.
-        if (chromeScheme) {
-            NSString *absoluteString = [theURL absoluteString];
-            NSRange rangeForScheme = [absoluteString rangeOfString:@":"];
-            NSString *urlNoScheme = [absoluteString substringFromIndex:rangeForScheme.location];
-            NSString *chromeURLString = [chromeScheme stringByAppendingString:urlNoScheme];
-            NSURL *chromeURL = [NSURL URLWithString:chromeURLString];
-            
-            // Open the URL with Chrome.
-            [[UIApplication sharedApplication] openURL:chromeURL];
-        }
-    }
-}
-
-#pragma mark - Actions
-
-- (void)backButtonTouchUp:(id)sender {
-    [webView goBack];
-    
-    [self toggleBackForwardButtons];
-}
-
-- (void)forwardButtonTouchUp:(id)sender {
-    [webView goForward];
-    
-    [self toggleBackForwardButtons];
-}
-
-- (void)reloadButtonTouchUp:(id)sender {
-    [webView reload];
-    
-    [self toggleBackForwardButtons];
-}
-
-- (void)buttonActionTouchUp:(id)sender {
-    [self showActionSheet];
-}
-
-#pragma mark - Public Methods
-
-- (void)setFixedTitleBarText:(NSString*)newTitleBarText {
-    forcedTitleBarText = newTitleBarText;
-    showPageTitleOnTitleBar = NO;
-}
-
-- (void)loadURL:(NSURL*)url {
     [webView loadRequest: [NSURLRequest requestWithURL: url]];
 }
 
 #pragma mark - UIWebViewDelegate
 
-- (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
+- (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType
+{
     if ([[request.URL absoluteString] hasPrefix:@"sms:"]) {
         [[UIApplication sharedApplication] openURL:request.URL];
         return NO;
@@ -485,13 +322,15 @@ enum actionSheetButtonIndex {
 	}
 }
 
-- (void)webViewDidStartLoad:(UIWebView *)webView {
+- (void)webViewDidStartLoad:(UIWebView *)webView
+{
     [self toggleBackForwardButtons];
     
     [self showActivityIndicators];
 }
 
-- (void)webViewDidFinishLoad:(UIWebView *)_webView {
+- (void)webViewDidFinishLoad:(UIWebView *)_webView
+{
     // Show page title on title bar?
     if (showPageTitleOnTitleBar) {
         NSString *pageTitle = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
@@ -503,7 +342,8 @@ enum actionSheetButtonIndex {
     [self toggleBackForwardButtons];
 }
 
-- (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error {
+- (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error
+{
     [self hideActivityIndicators];
     
     // To avoid getting an error alert when you click on a link
@@ -519,6 +359,198 @@ enum actionSheetButtonIndex {
                                           cancelButtonTitle:nil
                                           otherButtonTitles:NSLocalizedString(@"OK", nil), nil];
 	[alert show];
+}
+
+#pragma mark - Activity Indicators
+
+-(void)showActivityIndicators
+{
+    [activityIndicator setHidden:NO];
+    [activityIndicator startAnimating];
+    [UIApplication sharedApplication].networkActivityIndicatorVisible = YES;
+}
+
+-(void)hideActivityIndicators
+{
+    [activityIndicator setHidden:YES];
+    [activityIndicator stopAnimating];
+    [UIApplication sharedApplication].networkActivityIndicatorVisible = NO;
+}
+
+#pragma mark - Action Sheet
+
+- (void)showActionSheet
+{
+    NSString *urlString = @"";
+    if (showURLStringOnActionSheetTitle) {
+        NSURL* url = [webView.request URL];
+        urlString = [url absoluteString];
+    }
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] init];
+    actionSheet.title = urlString;
+    actionSheet.delegate = self;
+    [actionSheet addButtonWithTitle:NSLocalizedString(@"Open in Safari", nil)];
+    
+    if ([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"googlechrome://"]]) {
+        // Chrome is installed, add the option to open in chrome.
+        [actionSheet addButtonWithTitle:NSLocalizedString(@"Open in Chrome", nil)];
+    }
+    
+    actionSheet.cancelButtonIndex = [actionSheet addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	actionSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
+    
+    if (mode == TSMiniWebBrowserModeTabBar) {
+        [actionSheet showFromTabBar:self.tabBarController.tabBar];
+    }
+    //else if (mode == TSMiniWebBrowserModeNavigation && [self.navigationController respondsToSelector:@selector(tabBarController)]) {
+    else if (mode == TSMiniWebBrowserModeNavigation && self.navigationController.tabBarController != nil) {
+        [actionSheet showFromTabBar:self.navigationController.tabBarController.tabBar];
+    }
+    else {
+        [actionSheet showInView:self.view];
+    }
+}
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if (buttonIndex == [actionSheet cancelButtonIndex]) return;
+    
+    NSURL *theURL = [webView.request URL];
+    if (theURL == nil || [theURL isEqual:[NSURL URLWithString:@""]]) {
+        theURL = urlToLoad;
+    }
+    
+    if (buttonIndex == kSafariButtonIndex) {
+        [[UIApplication sharedApplication] openURL:theURL];
+    }
+    else if (buttonIndex == kChromeButtonIndex) {
+        NSString *scheme = theURL.scheme;
+        
+        // Replace the URL Scheme with the Chrome equivalent.
+        NSString *chromeScheme = nil;
+        if ([scheme isEqualToString:@"http"]) {
+            chromeScheme = @"googlechrome";
+        } else if ([scheme isEqualToString:@"https"]) {
+            chromeScheme = @"googlechromes";
+        }
+        
+        // Proceed only if a valid Google Chrome URI Scheme is available.
+        if (chromeScheme) {
+            NSString *absoluteString = [theURL absoluteString];
+            NSRange rangeForScheme = [absoluteString rangeOfString:@":"];
+            NSString *urlNoScheme = [absoluteString substringFromIndex:rangeForScheme.location];
+            NSString *chromeURLString = [chromeScheme stringByAppendingString:urlNoScheme];
+            NSURL *chromeURL = [NSURL URLWithString:chromeURLString];
+            
+            // Open the URL with Chrome.
+            [[UIApplication sharedApplication] openURL:chromeURL];
+        }
+    }
+}
+
+#pragma mark - Actions
+
+- (void)backButtonTouchUp:(id)sender
+{
+    [webView goBack];
+    
+    [self toggleBackForwardButtons];
+}
+
+- (void)forwardButtonTouchUp:(id)sender
+{
+    [webView goForward];
+    
+    [self toggleBackForwardButtons];
+}
+
+- (void)reloadButtonTouchUp:(id)sender
+{
+    [webView reload];
+    
+    [self toggleBackForwardButtons];
+}
+
+- (void)buttonActionTouchUp:(id)sender
+{
+    [self showActionSheet];
+}
+
+-(void) toggleBackForwardButtons
+{
+    buttonGoBack.enabled = webView.canGoBack;
+    buttonGoForward.enabled = webView.canGoForward;
+}
+
+#pragma mark - Interface Orientation
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    // Return YES for supported orientations
+    return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
+}
+
+/* Fix for landscape + zooming webview bug.
+ * If you experience perfomance problems on old devices ratation, comment out this method.
+ */
+- (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration
+{
+    CGFloat ratioAspect = webView.bounds.size.width/webView.bounds.size.height;
+    switch (toInterfaceOrientation) {
+        case UIInterfaceOrientationPortraitUpsideDown:
+        case UIInterfaceOrientationPortrait:
+            // Going to Portrait mode
+            for (UIScrollView *scroll in [webView subviews]) { //we get the scrollview
+                // Make sure it really is a scroll view and reset the zoom scale.
+                if ([scroll respondsToSelector:@selector(setZoomScale:)]){
+                    scroll.minimumZoomScale = scroll.minimumZoomScale/ratioAspect;
+                    scroll.maximumZoomScale = scroll.maximumZoomScale/ratioAspect;
+                    [scroll setZoomScale:(scroll.zoomScale/ratioAspect) animated:YES];
+                }
+            }
+            break;
+        default:
+            // Going to Landscape mode
+            for (UIScrollView *scroll in [webView subviews]) { //we get the scrollview
+                // Make sure it really is a scroll view and reset the zoom scale.
+                if ([scroll respondsToSelector:@selector(setZoomScale:)]){
+                    scroll.minimumZoomScale = scroll.minimumZoomScale *ratioAspect;
+                    scroll.maximumZoomScale = scroll.maximumZoomScale *ratioAspect;
+                    [scroll setZoomScale:(scroll.zoomScale*ratioAspect) animated:YES];
+                }
+            }
+            break;
+    }
+}
+
+#pragma mark - Teardown
+
+-(void) dismissController
+{
+    if ( webView.loading ) {
+        [webView stopLoading];
+    }
+    [self dismissViewControllerAnimated:YES completion:nil];
+    
+    // Notify the delegate
+    if (self.delegate != NULL && [self.delegate respondsToSelector:@selector(tsMiniWebBrowserDidDismiss)]) {
+        [delegate tsMiniWebBrowserDidDismiss];
+    }
+}
+
+-(void) viewWillDisappear:(BOOL)animated
+{
+    [super viewWillDisappear:animated];
+    
+    // Stop loading
+    [webView stopLoading];
+}
+
+//Added in the dealloc method to remove the webview delegate, because if you use this in a navigation controller
+//TSMiniWebBrowser can get deallocated while the page is still loading and the web view will call its delegate-- resulting in a crash
+-(void)dealloc
+{
+    [webView setDelegate:nil];
 }
 
 @end
