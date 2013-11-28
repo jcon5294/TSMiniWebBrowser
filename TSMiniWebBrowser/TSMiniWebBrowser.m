@@ -66,12 +66,12 @@ enum actionSheetButtonIndex {
         urlToLoad = url;
         
         // Defaults
-        mode = TSMiniWebBrowserModeNavigation;
-        showURLStringOnActionSheetTitle = YES;
-        showPageTitleOnTitleBar = YES;
-        showReloadButton = YES;
-        showActionButton = YES;
-        modalDismissButtonTitle = NSLocalizedString(@"Done", nil);
+        self.mode = TSMiniWebBrowserModeNavigation;
+        self.showURLStringOnActionSheetTitle = YES;
+        self.showPageTitleOnTitleBar = YES;
+        self.showReloadButton = YES;
+        self.showActionButton = YES;
+        self.modalDismissButtonTitle = NSLocalizedString(@"Done", nil);
         forcedTitleBarText = nil;
     }
     
@@ -83,7 +83,7 @@ enum actionSheetButtonIndex {
     [super viewDidLoad];
     
     // Main view frame.
-    if (mode == TSMiniWebBrowserModeTabBar) {
+    if (self.mode == TSMiniWebBrowserModeTabBar) {
         CGFloat viewWidth = [UIScreen mainScreen].bounds.size.width;
         CGFloat viewHeight = [UIScreen mainScreen].bounds.size.height - kTabBarHeight;
         if (![UIApplication sharedApplication].statusBarHidden) {
@@ -99,7 +99,7 @@ enum actionSheetButtonIndex {
     [self initWebView];
     
     // Init title bar if presented modally
-    if (mode == TSMiniWebBrowserModeModal) {
+    if (self.mode == TSMiniWebBrowserModeModal) {
         [self initTitleBar];
     }
     
@@ -114,7 +114,7 @@ enum actionSheetButtonIndex {
 // This method is only used in modal mode
 -(void) initTitleBar
 {
-    UIBarButtonItem *buttonDone = [[UIBarButtonItem alloc] initWithTitle:modalDismissButtonTitle style:UIBarButtonItemStyleBordered target:self action:@selector(dismissController)];
+    UIBarButtonItem *buttonDone = [[UIBarButtonItem alloc] initWithTitle:self.modalDismissButtonTitle style:UIBarButtonItemStyleBordered target:self action:@selector(dismissController)];
     
     UINavigationItem *titleBar = [[UINavigationItem alloc] initWithTitle:@""];
     titleBar.leftBarButtonItem = buttonDone;
@@ -132,7 +132,7 @@ enum actionSheetButtonIndex {
 {
     if (_showToolBar) {
         CGSize viewSize = self.view.frame.size;
-        if (mode == TSMiniWebBrowserModeTabBar) {
+        if (self.mode == TSMiniWebBrowserModeTabBar) {
             toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, -1, viewSize.width, kToolBarHeight)];
         } else {
             toolBar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, viewSize.height-kToolBarHeight, viewSize.width, kToolBarHeight)];
@@ -174,10 +174,10 @@ enum actionSheetButtonIndex {
         if (_showToolBar) [toolBarButtons addObject:flexibleSpace];
     }
 //        [toolBarButtons addObject:buttonContainer];
-    if (showReloadButton) {
+    if (self.showReloadButton) {
         [toolBarButtons addObject:buttonReload];
     }
-    if (showActionButton) {
+    if (self.showActionButton) {
         if (_showToolBar) [toolBarButtons addObject:fixedSpace2];
         [toolBarButtons addObject:buttonAction];
     }
@@ -186,7 +186,7 @@ enum actionSheetButtonIndex {
         // Set buttons to tool bar
         [toolBar setItems:toolBarButtons animated:YES];
 
-    } else if (mode == TSMiniWebBrowserModeNavigation) {
+    } else if (self.mode == TSMiniWebBrowserModeNavigation) {
         [self.navigationItem setRightBarButtonItems:toolBarButtons];
     }
 }
@@ -194,11 +194,11 @@ enum actionSheetButtonIndex {
 -(void) initWebView
 {
     CGSize viewSize = self.view.frame.size;
-    if (mode == TSMiniWebBrowserModeModal) {
+    if (self.mode == TSMiniWebBrowserModeModal) {
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, kToolBarHeight, viewSize.width, viewSize.height-kToolBarHeight*2)];
-    } else if(mode == TSMiniWebBrowserModeNavigation) {
+    } else if(self.mode == TSMiniWebBrowserModeNavigation) {
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, 0, viewSize.width, viewSize.height-(_showToolBar*kToolBarHeight))];
-    } else if(mode == TSMiniWebBrowserModeTabBar) {
+    } else if(self.mode == TSMiniWebBrowserModeTabBar) {
         self.view.backgroundColor = [UIColor redColor];
         webView = [[UIWebView alloc] initWithFrame:CGRectMake(0, kToolBarHeight-1, viewSize.width, viewSize.height-kToolBarHeight+1)];
     }
@@ -225,10 +225,10 @@ enum actionSheetButtonIndex {
 
 -(void)setTitleBarText:(NSString*)pageTitle
 {
-    if (mode == TSMiniWebBrowserModeModal) {
+    if (self.mode == TSMiniWebBrowserModeModal) {
         navigationBarModal.topItem.title = pageTitle;
         
-    } else if(mode == TSMiniWebBrowserModeNavigation) {
+    } else if(self.mode == TSMiniWebBrowserModeNavigation) {
         if(pageTitle) [[self navigationItem] setTitle:pageTitle];
     }
 }
@@ -236,7 +236,7 @@ enum actionSheetButtonIndex {
 - (void)setFixedTitleBarText:(NSString*)newTitleBarText
 {
     forcedTitleBarText = newTitleBarText;
-    showPageTitleOnTitleBar = NO;
+    self.showPageTitleOnTitleBar = NO;
 }
 
 - (void) viewWillAppear:(BOOL)animated
@@ -278,11 +278,11 @@ enum actionSheetButtonIndex {
 		
 		else
 		{
-            if (domainLockList == nil || [domainLockList isEqualToString:@""])
+            if (self.domainLockList == nil || [self.domainLockList isEqualToString:@""])
             {
 				if (navigationType == UIWebViewNavigationTypeLinkClicked)
 				{
-					currentURL = request.URL.absoluteString;
+					self.currentURL = request.URL.absoluteString;
 				}
                 
                 return YES;
@@ -290,7 +290,7 @@ enum actionSheetButtonIndex {
             
             else
             {
-                NSArray *domainList = [domainLockList componentsSeparatedByString:@","];
+                NSArray *domainList = [self.domainLockList componentsSeparatedByString:@","];
                 BOOL sendToSafari = YES;
                 
                 for (int x = 0; x < domainList.count; x++)
@@ -312,7 +312,7 @@ enum actionSheetButtonIndex {
                 {
 					if (navigationType == UIWebViewNavigationTypeLinkClicked)
 					{
-						currentURL = request.URL.absoluteString;
+						self.currentURL = request.URL.absoluteString;
 					}
                     
                     return YES;
@@ -332,7 +332,7 @@ enum actionSheetButtonIndex {
 - (void)webViewDidFinishLoad:(UIWebView *)_webView
 {
     // Show page title on title bar?
-    if (showPageTitleOnTitleBar) {
+    if (self.showPageTitleOnTitleBar) {
         NSString *pageTitle = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
         [self setTitleBarText:pageTitle];
     }
@@ -382,7 +382,7 @@ enum actionSheetButtonIndex {
 - (void)showActionSheet
 {
     NSString *urlString = @"";
-    if (showURLStringOnActionSheetTitle) {
+    if (self.showURLStringOnActionSheetTitle) {
         NSURL* url = [webView.request URL];
         urlString = [url absoluteString];
     }
@@ -399,11 +399,11 @@ enum actionSheetButtonIndex {
     actionSheet.cancelButtonIndex = [actionSheet addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
 	actionSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
     
-    if (mode == TSMiniWebBrowserModeTabBar) {
+    if (self.mode == TSMiniWebBrowserModeTabBar) {
         [actionSheet showFromTabBar:self.tabBarController.tabBar];
     }
     //else if (mode == TSMiniWebBrowserModeNavigation && [self.navigationController respondsToSelector:@selector(tabBarController)]) {
-    else if (mode == TSMiniWebBrowserModeNavigation && self.navigationController.tabBarController != nil) {
+    else if (self.mode == TSMiniWebBrowserModeNavigation && self.navigationController.tabBarController != nil) {
         [actionSheet showFromTabBar:self.navigationController.tabBarController.tabBar];
     }
     else {
@@ -534,7 +534,7 @@ enum actionSheetButtonIndex {
     
     // Notify the delegate
     if (self.delegate != NULL && [self.delegate respondsToSelector:@selector(tsMiniWebBrowserDidDismiss)]) {
-        [delegate tsMiniWebBrowserDidDismiss];
+        [self.delegate tsMiniWebBrowserDidDismiss];
     }
 }
 
